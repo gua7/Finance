@@ -5,9 +5,7 @@ Created on Wed Feb 14 07:29:44 2024
 @author: Jiaqi
 """
 import numpy as np
-import scipy as sp
 import pandas as pd
-from scipy.optimize import fsolve
 
 def simple_survival_rate(CDS_rate,year,LGD):
     avg_hazard_rate = CDS_rate/LGD
@@ -43,6 +41,30 @@ df.to_excel('result_table1.xlsx', index=False)
 
 
 def survival_probability_quarter(t, lamb1=None, lamb2=None, lamb3=None, lamb4=None, lamb5=None):
+    '''
+    
+
+    Parameters
+    ----------
+    t : float, time in year
+        time in year (between 0 to 10 only)
+    lamb1 : float, optional
+        default intensity between year 0 and 1. The default is None.
+    lamb2 : float, optional
+        default intensity between year 1 and 3. The default is None.
+    lamb3 : float, optional
+        default intensity between year 3 and 5. The default is None.
+    lamb4 : float, optional
+        default intensity between year 5 and 7. The default is None.
+    lamb5 : float, optional
+        default intensity between year 7 and 10. The default is None.
+                    
+    Returns
+    -------
+    survival_prob : float
+        Cumulated survival probability
+
+    '''
     lamb_values = [lamb for lamb in (lamb1, lamb2, lamb3, lamb4, lamb5) if lamb is not None]
     intervals = [1, 2, 2, 2, 3]
     accumulated_time = 0
@@ -99,14 +121,31 @@ def find_CDS_solution(T,CDS_rate,LGD,IR,maximum_iteration,*lambs):
         else:
             x_high = (x_high+x_low)/2  
     return (x_high+x_low)/2
-
     
-lamb1 = find_CDS_solution(1, 0.01, 0.4, 0.03, 100000000)  
-lamb2 = find_CDS_solution(3, 0.011, 0.4, 0.03, 100000000,lamb1)   
-lamb3 = find_CDS_solution(5, 0.012, 0.4, 0.03, 100000000,lamb1,lamb2)
-lamb4 = find_CDS_solution(7, 0.012, 0.4, 0.03, 100000000,lamb1,lamb2,lamb3)
+lamb1 = find_CDS_solution(1, 0.01, 0.4, 0.03,100000000)  
+lamb2 = find_CDS_solution(3, 0.011, 0.4, 0.03,100000000,lamb1)   
+lamb3 = find_CDS_solution(5, 0.012, 0.4, 0.03,100000000,lamb1,lamb2)
+lamb4 = find_CDS_solution(7, 0.012, 0.4, 0.03,100000000,lamb1,lamb2,lamb3)
 lamb5 = find_CDS_solution(10, 0.0125, 0.4, 0.03,100000000,lamb1,lamb2,lamb3,lamb4)
+lambdas = np.array([0,lamb1,lamb2,lamb3,lamb4,lamb5])
+years = [0,1,3,5,7,10]
+interval = np.array([0,1,2,2,2,3])
+average_hazards = np.zeros((len(lambdas)-1))
+for i in range(1,len(lambdas)):
+    average_hazards[i-1] = sum(lambdas[:(i+1)]*interval[:(i+1)])/(years[i])
+print(lambdas[1:])
+print(average_hazards)
 
-
-
-print(lamb1,lamb2,lamb3,lamb4,lamb5)
+survival_proba1 = survival_probability_quarter(1, lamb1)
+survival_proba2 = survival_probability_quarter(3, lamb1, lamb2)
+survival_proba3 = survival_probability_quarter(5, lamb1, lamb2, lamb3)
+survival_proba4 = survival_probability_quarter(7, lamb1, lamb2, lamb3, lamb4)
+survival_proba5 = survival_probability_quarter(10, lamb1, lamb2, lamb3, lamb4, lamb5)
+survival = np.array([survival_proba1,survival_proba2,survival_proba3,survival_proba4,survival_proba5])
+total_default = 1 - survival
+avg_default = np.zeros((len(total_default)))
+avg_default[0] = total_default[0]
+for i in range(1,len(total_default)):
+    avg_default[i] = (total_default[i] - total_default[i-1])/interval[i+1]
+print(avg_default)
+    
